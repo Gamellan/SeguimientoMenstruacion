@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Perioden-Tracker</string>
+    <string name="title_home">Periodenübersicht</string>
+    <string name="title_settings">Einstellungen</string>
+    <string name="title_statistics">Statistiken</string>
+    <string name="title_create_record">Neuer Eintrag</string>
+    <string name="title_history">Verlauf</string>
+    <string name="title_edit_record">Eintrag bearbeiten</string>
+    <string name="label_next_period">Nächste Periode</string>
+    <string name="value_not_enough_data">Nicht genügend Daten</string>
+    <string name="label_ovulation_estimated">Geschätzter Eisprung: %1$s</string>
+    <string name="label_cycle_avg_days">Durchschnittlicher Zyklus: %1$d Tage</string>
+    <string name="label_summary">Zusammenfassung</string>
+    <string name="label_notifications">Benachrichtigungen</string>
+    <string name="label_notifications_desc">Erinnerungen für Periode und Eisprung</string>
+    <string name="value_ongoing">Laufend</string>
+    <string name="label_ongoing_period">Periode läuft</string>
+    <string name="label_period">Zeitraum</string>
+    <string name="label_flow_amount">Blutungsstärke</string>
+    <string name="label_pain_scale">Schmerz (1-10)</string>
+    <string name="nav_home">Start</string>
+    <string name="nav_create">Neu</string>
+    <string name="nav_history">Verlauf</string>
+    <string name="nav_settings">Einstellungen</string>
+    <string name="action_back">Zurück</string>
+    <string name="action_edit">Bearbeiten</string>
+    <string name="action_delete">Löschen</string>
+    <string name="action_save_record">Speichern</string>
+    <string name="action_update_record">Aktualisieren</string>
+    <string name="action_select_period">Zeitraum wählen</string>
+    <string name="action_accept">OK</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_select_amount">Menge wählen</string>
+    <string name="action_select_pain">Schmerz wählen</string>
+    <string name="notif_cycle_title">Zyklus-Erinnerung</string>
+    <string name="notif_cycle_msg">Ihre geschätzte nächste Periode steht bevor.</string>
+    <string name="notif_ovulation_title">Eisprung-Erinnerung</string>
+    <string name="notif_ovulation_msg">Heute ist Ihr geschätzter Eisprungtag.</string>
+    <string name="notif_ongoing_title">Wie läuft Ihre Periode?</string>
+    <string name="notif_ongoing_msg">Symptome, Schmerz oder Enddatum bei Bedarf aktualisieren.</string>
+</resources>

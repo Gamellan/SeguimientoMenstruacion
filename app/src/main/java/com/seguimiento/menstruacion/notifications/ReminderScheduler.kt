@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import com.seguimiento.menstruacion.R
 import com.seguimiento.menstruacion.data.PeriodPredictions
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -17,14 +18,14 @@ class ReminderScheduler(private val context: Context) {
         scheduleIfFuture(
             requestCode = REQUEST_PERIOD,
             date = predictions.nextPeriodDate,
-            title = "Recordatorio de ciclo",
-            message = "Se acerca tu próxima menstruación estimada."
+            title = context.getString(R.string.notif_cycle_title),
+            message = context.getString(R.string.notif_cycle_msg)
         )
         scheduleIfFuture(
             requestCode = REQUEST_OVULATION,
             date = predictions.ovulationDate,
-            title = "Recordatorio de ovulación",
-            message = "Hoy es tu día estimado de ovulación."
+            title = context.getString(R.string.notif_ovulation_title),
+            message = context.getString(R.string.notif_ovulation_msg)
         )
     }
 
@@ -44,8 +45,8 @@ class ReminderScheduler(private val context: Context) {
             AlarmManager.INTERVAL_DAY,
             buildPendingIntent(
                 REQUEST_ONGOING_DAILY,
-                "¿Cómo va tu periodo?",
-                "Actualiza síntomas, dolor o fecha de fin si ya terminó."
+                context.getString(R.string.notif_ongoing_title),
+                context.getString(R.string.notif_ongoing_msg)
             )
         )
     }

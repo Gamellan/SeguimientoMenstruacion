@@ -51,10 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.ContextCompat
+import com.seguimiento.menstruacion.R
 import com.seguimiento.menstruacion.data.PeriodPredictions
 import com.seguimiento.menstruacion.data.PeriodRecord
 import com.seguimiento.menstruacion.data.PeriodStatistics
@@ -78,12 +80,12 @@ fun PeriodTrackerScreen(viewModel: PeriodTrackerViewModel) {
     }
 
     val screenTitle = when (uiState.currentScreen) {
-        AppScreen.HOME -> "Seguimiento menstrual"
-        AppScreen.SETTINGS -> "Configuración"
-        AppScreen.STATISTICS -> "Estadísticas"
-        AppScreen.CREATE_RECORD -> "Nuevo registro"
-        AppScreen.HISTORY -> "Histórico"
-        AppScreen.EDIT_RECORD -> "Editar registro"
+        AppScreen.HOME -> stringResource(R.string.title_home)
+        AppScreen.SETTINGS -> stringResource(R.string.title_settings)
+        AppScreen.STATISTICS -> stringResource(R.string.title_statistics)
+        AppScreen.CREATE_RECORD -> stringResource(R.string.title_create_record)
+        AppScreen.HISTORY -> stringResource(R.string.title_history)
+        AppScreen.EDIT_RECORD -> stringResource(R.string.title_edit_record)
     }
 
     Scaffold(
@@ -194,23 +196,23 @@ private fun HomeScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Próxima menstruación", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.label_next_period), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        predictions.nextPeriodDate?.format(formatter) ?: "Sin datos suficientes",
+                        predictions.nextPeriodDate?.format(formatter) ?: stringResource(R.string.value_not_enough_data),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Ovulación estimada: ${predictions.ovulationDate?.format(formatter) ?: "Sin datos suficientes"}")
-                    Text("Ciclo promedio: ${predictions.averageCycleLengthDays} días", style = MaterialTheme.typography.bodySmall)
-                    PrimaryActionButton(text = "Ver estadísticas", onClick = onGoToStatistics)
+                    Text(stringResource(R.string.label_ovulation_estimated, predictions.ovulationDate?.format(formatter) ?: stringResource(R.string.value_not_enough_data)))
+                    Text(stringResource(R.string.label_cycle_avg_days, predictions.averageCycleLengthDays), style = MaterialTheme.typography.bodySmall)
+                    PrimaryActionButton(text = stringResource(R.string.action_view_statistics), onClick = onGoToStatistics)
                 }
             }
         }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PrimaryActionButton(text = "Crear", onClick = onGoToCreate, modifier = Modifier.weight(1f))
-                PrimaryActionButton(text = "Histórico", onClick = onGoToHistory, modifier = Modifier.weight(1f))
+                PrimaryActionButton(text = stringResource(R.string.action_create), onClick = onGoToCreate, modifier = Modifier.weight(1f))
+                PrimaryActionButton(text = stringResource(R.string.action_history), onClick = onGoToHistory, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -229,15 +231,15 @@ private fun StatisticsScreen(
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Resumen", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Duración media de ciclo: ${statistics.averageCycleLengthDays} días")
-                Text("Duración media de menstruación: ${statistics.averagePeriodLengthDays} días")
-                Text("Variabilidad del ciclo: ±${statistics.cycleVariabilityDays} días")
-                Text("Dolor medio: ${statistics.averagePainLevel}/10")
+                Text(stringResource(R.string.label_summary), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.label_cycle_duration_avg, statistics.averageCycleLengthDays))
+                Text(stringResource(R.string.label_period_duration_avg, statistics.averagePeriodLengthDays))
+                Text(stringResource(R.string.label_cycle_variability, statistics.cycleVariabilityDays))
+                Text(stringResource(R.string.label_pain_avg, statistics.averagePainLevel))
             }
         }
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Volver")
+            Text(stringResource(R.string.action_back))
         }
     }
 }
@@ -270,8 +272,8 @@ private fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Notificaciones")
-                    Text("Recordatorios de próxima menstruación y ovulación", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.label_notifications))
+                    Text(stringResource(R.string.label_notifications_desc), style = MaterialTheme.typography.bodySmall)
                 }
                 Switch(
                     checked = remindersEnabled,
@@ -298,7 +300,7 @@ private fun SettingsScreen(
             }
         }
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Volver")
+            Text(stringResource(R.string.action_back))
         }
     }
 }
@@ -328,13 +330,13 @@ private fun HistoryScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("🩷", style = MaterialTheme.typography.headlineMedium)
-                        Text("Aún no hay registros", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.label_no_records), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Empieza creando tu primer ciclo para ver historial y estadísticas.",
+                            stringResource(R.string.label_no_records_desc),
                             style = MaterialTheme.typography.bodySmall
                         )
                         Button(onClick = onBack) {
-                            Text("Crear primer registro")
+                            Text(stringResource(R.string.action_create_first_record))
                         }
                     }
                 }
@@ -343,25 +345,25 @@ private fun HistoryScreen(
             items(records, key = { it.id }) { record ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val endLabel = record.endDate?.format(formatter) ?: "En curso"
+                        val endLabel = record.endDate?.format(formatter) ?: stringResource(R.string.value_ongoing)
                         Text(
                             "${record.startDate.format(formatter)} - $endLabel",
                             fontWeight = FontWeight.SemiBold
                         )
-                        Text("Flujo: ${record.flowLevel}")
-                        Text("Dolor: ${record.painLevel}/10")
+                        Text(stringResource(R.string.label_flow_value, record.flowLevel))
+                        Text(stringResource(R.string.label_pain_value, record.painLevel))
                         if (record.symptoms.isNotEmpty()) {
-                            Text("Síntomas: ${record.symptoms.joinToString()}")
+                            Text(stringResource(R.string.label_symptoms_value, record.symptoms.joinToString()))
                         }
                         if (record.notes.isNotBlank()) {
-                            Text("Notas: ${record.notes}")
+                            Text(stringResource(R.string.label_notes_value, record.notes))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { onEdit(record) }) { Text("Editar") }
+                            TextButton(onClick = { onEdit(record) }) { Text(stringResource(R.string.action_edit)) }
                             TextButton(
                                 onClick = { onDelete(record.id) },
                             ) {
-                                Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -386,14 +388,14 @@ private fun RecordFormScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { TextButton(onClick = onBack) { Text("Volver") } }
+        item { TextButton(onClick = onBack) { Text(stringResource(R.string.action_back)) } }
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Periodo en curso")
+                Text(stringResource(R.string.label_ongoing_period))
                 Switch(
                     checked = form.isOngoing,
                     onCheckedChange = viewModel::onOngoingChanged
@@ -414,7 +416,7 @@ private fun RecordFormScreen(
                 onSelected = viewModel::onFlowChanged
             )
         }
-        item { Text("Síntomas frecuentes") }
+        item { Text(stringResource(R.string.label_common_symptoms)) }
         item {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -433,7 +435,7 @@ private fun RecordFormScreen(
             OutlinedTextField(
                 value = form.customSymptomsText,
                 onValueChange = viewModel::onCustomSymptomsChanged,
-                label = { Text("Otros síntomas (separados por comas)") },
+                label = { Text(stringResource(R.string.label_other_symptoms)) },
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -447,7 +449,7 @@ private fun RecordFormScreen(
             OutlinedTextField(
                 value = form.notes,
                 onValueChange = viewModel::onNotesChanged,
-                label = { Text("Notas") },
+                label = { Text(stringResource(R.string.label_notes)) },
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -456,7 +458,7 @@ private fun RecordFormScreen(
         }
         item {
             Button(onClick = viewModel::saveRecord, modifier = Modifier.fillMaxWidth()) {
-                Text(if (isEditing) "Actualizar registro" else "Guardar registro")
+                Text(if (isEditing) stringResource(R.string.action_update_record) else stringResource(R.string.action_save_record))
             }
         }
     }
@@ -479,22 +481,22 @@ private fun BottomNavigationBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomNavItem(
-                label = "Inicio",
+                label = stringResource(R.string.nav_home),
                 selected = currentScreen == AppScreen.HOME,
                 onClick = onGoHome
             )
             BottomNavItem(
-                label = "Crear",
+                label = stringResource(R.string.nav_create),
                 selected = currentScreen == AppScreen.CREATE_RECORD,
                 onClick = onGoCreate
             )
             BottomNavItem(
-                label = "Histórico",
+                label = stringResource(R.string.nav_history),
                 selected = currentScreen == AppScreen.HISTORY || currentScreen == AppScreen.EDIT_RECORD,
                 onClick = onGoHistory
             )
             BottomNavItem(
-                label = "Ajustes",
+                label = stringResource(R.string.nav_settings),
                 selected = currentScreen == AppScreen.SETTINGS,
                 onClick = onGoSettings
             )
@@ -520,9 +522,9 @@ private fun BottomNavItem(
 @Composable
 private fun OnboardingScreen(onFinish: () -> Unit) {
     val pages = listOf(
-        "Registra tu ciclo" to "Guarda inicio, fin, flujo, síntomas y dolor en segundos.",
-        "Entiende tus patrones" to "Consulta estadísticas y calendario para ver tendencias.",
-        "Recibe predicciones" to "Activa recordatorios locales para próxima menstruación y ovulación."
+        stringResource(R.string.onboard_title_1) to stringResource(R.string.onboard_desc_1),
+        stringResource(R.string.onboard_title_2) to stringResource(R.string.onboard_desc_2),
+        stringResource(R.string.onboard_title_3) to stringResource(R.string.onboard_desc_3)
     )
     var currentPage by remember { mutableStateOf(0) }
 
@@ -535,8 +537,8 @@ private fun OnboardingScreen(onFinish: () -> Unit) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Bienvenida", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Paso ${currentPage + 1} de ${pages.size}")
+                Text(stringResource(R.string.onboard_welcome), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.onboard_step, currentPage + 1, pages.size))
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(pages[currentPage].first, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(pages[currentPage].second)
@@ -548,7 +550,7 @@ private fun OnboardingScreen(onFinish: () -> Unit) {
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (currentPage < pages.lastIndex) "Siguiente" else "Empezar")
+                Text(if (currentPage < pages.lastIndex) stringResource(R.string.action_next) else stringResource(R.string.action_get_started))
             }
         }
     }
@@ -702,8 +704,8 @@ private fun PeriodRangeField(
     )
 
     val displayText = when {
-        startDate.isBlank() -> "Sin periodo seleccionado"
-        isOngoing -> "${startDate.toDisplayDate()} - En curso"
+        startDate.isBlank() -> stringResource(R.string.value_no_period_selected)
+        isOngoing -> "${startDate.toDisplayDate()} - ${stringResource(R.string.value_ongoing)}"
         endDate.isBlank() -> startDate.toDisplayDate()
         else -> "${startDate.toDisplayDate()} - ${endDate.toDisplayDate()}"
     }
@@ -712,12 +714,12 @@ private fun PeriodRangeField(
         value = displayText,
         onValueChange = {},
         readOnly = true,
-        label = { Text("Periodo") },
+        label = { Text(stringResource(R.string.label_period)) },
         modifier = Modifier.fillMaxWidth()
     )
 
     Button(onClick = { showPicker = true }, modifier = Modifier.fillMaxWidth()) {
-        Text("Seleccionar periodo")
+        Text(stringResource(R.string.action_select_period))
     }
 
     if (showPicker) {
@@ -739,12 +741,12 @@ private fun PeriodRangeField(
                     persistSelection()
                     showPicker = false
                 }) {
-                    Text("Aceptar")
+                    Text(stringResource(R.string.action_accept))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showPicker = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         ) {
@@ -765,12 +767,12 @@ private fun FlowSelector(
             value = selected,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Cantidad de sangre") },
+            label = { Text(stringResource(R.string.label_flow_amount)) },
             modifier = Modifier.fillMaxWidth()
         )
 
         Button(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Seleccionar cantidad")
+            Text(stringResource(R.string.action_select_amount))
         }
 
         DropdownMenu(
@@ -801,12 +803,12 @@ private fun PainSelector(
             value = selected,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Dolor (1-10)") },
+            label = { Text(stringResource(R.string.label_pain_scale)) },
             modifier = Modifier.fillMaxWidth()
         )
 
         Button(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Seleccionar dolor")
+            Text(stringResource(R.string.action_select_pain))
         }
 
         DropdownMenu(

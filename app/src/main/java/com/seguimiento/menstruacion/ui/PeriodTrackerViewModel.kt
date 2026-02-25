@@ -260,17 +260,17 @@ class PeriodTrackerViewModel(
         val effectiveIsOngoing = form.isOngoing || endDate == null
 
         if (startDate == null) {
-            formState.update { it.copy(error = "Selecciona el inicio del periodo") }
+            formState.update { it.copy(error = "Select the start date of the period") }
             return
         }
 
         if (!effectiveIsOngoing && endDate != null && endDate.isBefore(startDate)) {
-            formState.update { it.copy(error = "La fecha de fin no puede ser anterior al inicio") }
+            formState.update { it.copy(error = "End date cannot be earlier than start date") }
             return
         }
 
         if (pain == null || pain !in 1..10) {
-            formState.update { it.copy(error = "El nivel de dolor debe estar entre 1 y 10") }
+            formState.update { it.copy(error = "Pain level must be between 1 and 10") }
             return
         }
 
@@ -319,6 +319,6 @@ class PeriodTrackerViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return PeriodTrackerViewModel(repository, preferences, reminderScheduler) as T
         }
-        throw IllegalArgumentException("ViewModel class no soportada")
+        throw IllegalArgumentException("Unsupported ViewModel class")
     }
 }

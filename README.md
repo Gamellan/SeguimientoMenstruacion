@@ -4,7 +4,8 @@ Aplicación Android nativa (Kotlin + Jetpack Compose) para registrar ciclos mens
 
 ## Funcionalidades MVP
 
-- Registro de fecha de inicio y fin.
+- Registro de periodo con selector de rango de fechas.
+- Opción de periodo en curso (sin fecha de fin).
 - Registro de cantidad de sangre (ligero, medio, abundante).
 - Registro de síntomas estructurados (chips) + síntomas libres, nivel de dolor (1-10) y notas.
 - Historial de ciclos guardados.
@@ -14,7 +15,9 @@ Aplicación Android nativa (Kotlin + Jetpack Compose) para registrar ciclos mens
 - Calendario mensual visual (en pantalla principal) con navegación entre meses y marcadores de menstruación, ventana fértil y ovulación estimada.
 - Estadísticas: duración media de ciclo, duración media de menstruación, variabilidad y dolor medio.
 - Onboarding inicial de 3 pasos para primer uso.
-- Sección de configuración para activar/desactivar notificaciones locales de próxima menstruación y ovulación.
+- Sección de configuración para activar/desactivar notificaciones locales.
+- Notificación diaria mientras exista un periodo en curso (si notificaciones están activadas).
+- Soporte multidioma (inglés por defecto + español, francés, alemán y portugués de Brasil).
 - **Privacidad:** datos guardados solo en local con Room (sin nube, sin login).
 
 ## Pantallas
@@ -54,3 +57,9 @@ Aplicación Android nativa (Kotlin + Jetpack Compose) para registrar ciclos mens
 
 - Los recordatorios usan notificaciones locales del dispositivo (sin servicios externos).
 - En Android 13+ la app solicita permiso de notificaciones al activarlos.
+- Si hay un periodo en curso, se programa un recordatorio diario para actualizar síntomas/dolor o cerrar el periodo.
+
+## Idiomas
+
+- Idioma base/fallback: inglés.
+- Traducciones incluidas: español (`values-es`), francés (`values-fr`), alemán (`values-de`) y portugués Brasil (`values-pt-rBR`).

@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.seguimiento.menstruacion.R
 import kotlin.random.Random
 
 class ReminderReceiver : BroadcastReceiver() {
@@ -42,7 +43,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Recordatorios de ciclo",
+            context.getString(R.string.notif_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         )
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
