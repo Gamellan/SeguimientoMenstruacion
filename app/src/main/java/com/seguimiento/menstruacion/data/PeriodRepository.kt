@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.map
 data class PeriodRecord(
     val id: Long,
     val startDate: LocalDate,
-    val endDate: LocalDate,
+    val endDate: LocalDate?,
+    val isOngoing: Boolean,
     val flowLevel: String,
     val symptoms: List<String>,
     val painLevel: Int,
@@ -39,7 +40,8 @@ class PeriodRepository(
                 PeriodRecord(
                     id = entity.id,
                     startDate = LocalDate.parse(entity.startDate),
-                    endDate = LocalDate.parse(entity.endDate),
+                    endDate = entity.endDate?.let { LocalDate.parse(it) },
+                    isOngoing = entity.isOngoing,
                     flowLevel = entity.flowLevel,
                     symptoms = entity.symptoms.split(",").map { it.trim() }.filter { it.isNotEmpty() },
                     painLevel = entity.painLevel,
@@ -54,7 +56,8 @@ class PeriodRepository(
             PeriodRecordEntity(
                 id = record.id,
                 startDate = record.startDate.toString(),
-                endDate = record.endDate.toString(),
+                endDate = record.endDate?.toString(),
+                isOngoing = record.isOngoing,
                 flowLevel = record.flowLevel,
                 symptoms = record.symptoms.joinToString(","),
                 painLevel = record.painLevel,
@@ -68,7 +71,8 @@ class PeriodRepository(
             PeriodRecordEntity(
                 id = record.id,
                 startDate = record.startDate.toString(),
-                endDate = record.endDate.toString(),
+                endDate = record.endDate?.toString(),
+                isOngoing = record.isOngoing,
                 flowLevel = record.flowLevel,
                 symptoms = record.symptoms.joinToString(","),
                 painLevel = record.painLevel,
@@ -140,7 +144,8 @@ class PeriodRepository(
 
         val averagePeriodLength = records
             .map {
-                ChronoUnit.DAYS.between(it.startDate, it.endDate).toInt().coerceAtLeast(0) + 1
+                val periodEnd = if (it.isOngoing) LocalDate.now() else (it.endDate ?: it.startDate)
+                ChronoUnit.DAYS.between(it.startDate, periodEnd).toInt().coerceAtLeast(0) + 1
             }
             .average()
             .roundToInt()

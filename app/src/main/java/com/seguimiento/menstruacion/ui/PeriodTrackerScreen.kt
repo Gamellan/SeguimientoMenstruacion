@@ -5,6 +5,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,8 +27,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +36,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -42,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,6 +65,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val flowOptions = listOf("Ligero", "Medio", "Abundante")
+private val painOptions = (1..10).map { it.toString() }
 private val weekDayLabels = listOf("L", "M", "X", "J", "V", "S", "D")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -106,7 +115,6 @@ fun PeriodTrackerScreen(viewModel: PeriodTrackerViewModel) {
                     onPreviousMonth = viewModel::previousMonth,
                     onNextMonth = viewModel::nextMonth,
                     onGoToStatistics = viewModel::goToStatistics,
-                    onGoToSettings = viewModel::goToSettings,
                     onGoToCreate = viewModel::goToCreateRecord,
                     onGoToHistory = viewModel::goToHistory
                 )
@@ -153,7 +161,6 @@ private fun HomeScreen(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onGoToStatistics: () -> Unit,
-    onGoToSettings: () -> Unit,
     onGoToCreate: () -> Unit,
     onGoToHistory: () -> Unit
 ) {
@@ -165,7 +172,10 @@ private fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CycleCalendar(
                         records = records,
@@ -179,7 +189,10 @@ private fun HomeScreen(
         }
 
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Próxima menstruación", style = MaterialTheme.typography.titleSmall)
                     Text(
@@ -189,17 +202,15 @@ private fun HomeScreen(
                     )
                     Text("Ovulación estimada: ${predictions.ovulationDate?.format(formatter) ?: "Sin datos suficientes"}")
                     Text("Ciclo promedio: ${predictions.averageCycleLengthDays} días", style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = onGoToStatistics, modifier = Modifier.fillMaxWidth()) {
-                        Text("Ver estadísticas")
-                    }
+                    PrimaryActionButton(text = "Ver estadísticas", onClick = onGoToStatistics)
                 }
             }
         }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onGoToCreate, modifier = Modifier.weight(1f)) { Text("Crear") }
-                Button(onClick = onGoToHistory, modifier = Modifier.weight(1f)) { Text("Histórico") }
+                PrimaryActionButton(text = "Crear", onClick = onGoToCreate, modifier = Modifier.weight(1f))
+                PrimaryActionButton(text = "Histórico", onClick = onGoToHistory, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -332,8 +343,9 @@ private fun HistoryScreen(
             items(records, key = { it.id }) { record ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val endLabel = record.endDate?.format(formatter) ?: "En curso"
                         Text(
-                            "${record.startDate.format(formatter)} - ${record.endDate.format(formatter)}",
+                            "${record.startDate.format(formatter)} - $endLabel",
                             fontWeight = FontWeight.SemiBold
                         )
                         Text("Flujo: ${record.flowLevel}")
@@ -376,17 +388,24 @@ private fun RecordFormScreen(
     ) {
         item { TextButton(onClick = onBack) { Text("Volver") } }
         item {
-            DatePickerField(
-                label = "Fecha inicio",
-                value = form.startDate,
-                onDateSelected = viewModel::onStartDateChanged
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Periodo en curso")
+                Switch(
+                    checked = form.isOngoing,
+                    onCheckedChange = viewModel::onOngoingChanged
+                )
+            }
         }
         item {
-            DatePickerField(
-                label = "Fecha fin",
-                value = form.endDate,
-                onDateSelected = viewModel::onEndDateChanged
+            PeriodRangeField(
+                startDate = form.startDate,
+                endDate = form.endDate,
+                isOngoing = form.isOngoing,
+                onRangeSelected = viewModel::onPeriodRangeChanged
             )
         }
         item {
@@ -419,11 +438,9 @@ private fun RecordFormScreen(
             )
         }
         item {
-            OutlinedTextField(
-                value = form.painLevel,
-                onValueChange = viewModel::onPainChanged,
-                label = { Text("Dolor (1-10)") },
-                modifier = Modifier.fillMaxWidth()
+            PainSelector(
+                selected = form.painLevel,
+                onSelected = viewModel::onPainChanged
             )
         }
         item {
@@ -545,61 +562,88 @@ private fun CycleCalendar(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit
 ) {
+    var horizontalDragAccumulated by remember { mutableStateOf(0f) }
+    val swipeThreshold = 72f
+
     val firstDay = visibleMonth.atDay(1)
     val leadingEmptyCells = firstDay.dayOfWeek.value - 1
     val allDates = mutableListOf<LocalDate?>()
 
     repeat(leadingEmptyCells) { allDates.add(null) }
     (1..visibleMonth.lengthOfMonth()).forEach { day -> allDates.add(visibleMonth.atDay(day)) }
+    while (allDates.size % 7 != 0) {
+        allDates.add(null)
+    }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(visibleMonth) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, dragAmount ->
+                        horizontalDragAccumulated += dragAmount
+                    },
+                    onDragEnd = {
+                        when {
+                            horizontalDragAccumulated <= -swipeThreshold -> onNextMonth()
+                            horizontalDragAccumulated >= swipeThreshold -> onPreviousMonth()
+                        }
+                        horizontalDragAccumulated = 0f
+                    },
+                    onDragCancel = {
+                        horizontalDragAccumulated = 0f
+                    }
+                )
+            }
     ) {
-        TextButton(onClick = onPreviousMonth) { Text("‹") }
-        Text(
-            "${visibleMonth.month.name.lowercase().replaceFirstChar { it.uppercase() }} ${visibleMonth.year}",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        TextButton(onClick = onNextMonth) { Text("›") }
-    }
+        AnimatedContent(
+            targetState = visibleMonth,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "calendar_month"
+        ) { month ->
+            Text(
+                "${month.month.name.lowercase().replaceFirstChar { it.uppercase() }} ${month.year}",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+        }
 
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        weekDayLabels.forEach { Text(it, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold) }
-    }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            weekDayLabels.forEach { Text(it, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold) }
+        }
 
-    allDates.chunked(7).forEach { week ->
-        Row(modifier = Modifier.fillMaxWidth()) {
-            week.forEach { date ->
-                val marker = date?.let { resolveMarker(it, records, predictions) } ?: DayMarker.NONE
-                val containerColor = when (marker) {
-                    DayMarker.PERIOD -> MaterialTheme.colorScheme.primaryContainer
-                    DayMarker.FERTILE -> MaterialTheme.colorScheme.tertiaryContainer
-                    DayMarker.OVULATION -> MaterialTheme.colorScheme.secondaryContainer
-                    DayMarker.NONE -> MaterialTheme.colorScheme.surfaceVariant
-                }
-                val textColor = when (marker) {
-                    DayMarker.PERIOD -> MaterialTheme.colorScheme.onPrimaryContainer
-                    DayMarker.FERTILE -> MaterialTheme.colorScheme.onTertiaryContainer
-                    DayMarker.OVULATION -> MaterialTheme.colorScheme.onSecondaryContainer
-                    DayMarker.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
+        allDates.chunked(7).forEach { week ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                week.forEach { date ->
+                    val marker = date?.let { resolveMarker(it, records, predictions) } ?: DayMarker.NONE
+                    val containerColor = when (marker) {
+                        DayMarker.PERIOD -> MaterialTheme.colorScheme.primaryContainer
+                        DayMarker.FERTILE -> MaterialTheme.colorScheme.tertiaryContainer
+                        DayMarker.OVULATION -> MaterialTheme.colorScheme.secondaryContainer
+                        DayMarker.NONE -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                    val textColor = when (marker) {
+                        DayMarker.PERIOD -> MaterialTheme.colorScheme.onPrimaryContainer
+                        DayMarker.FERTILE -> MaterialTheme.colorScheme.onTertiaryContainer
+                        DayMarker.OVULATION -> MaterialTheme.colorScheme.onSecondaryContainer
+                        DayMarker.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
 
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = containerColor),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(2.dp)
-                ) {
-                    Box(
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = containerColor),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(36.dp),
-                        contentAlignment = Alignment.Center
+                            .weight(1f)
+                            .padding(2.dp)
                     ) {
-                        Text(text = date?.dayOfMonth?.toString() ?: "", color = textColor)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = date?.dayOfMonth?.toString() ?: "", color = textColor)
+                        }
                     }
                 }
             }
@@ -607,10 +651,23 @@ private fun CycleCalendar(
     }
 }
 
+@Composable
+private fun PrimaryActionButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(onClick = onClick, modifier = modifier) {
+        Text(text)
+    }
+}
 private enum class DayMarker { NONE, PERIOD, FERTILE, OVULATION }
 
 private fun resolveMarker(date: LocalDate, records: List<PeriodRecord>, predictions: PeriodPredictions): DayMarker {
-    val isPeriodDay = records.any { record -> !date.isBefore(record.startDate) && !date.isAfter(record.endDate) }
+    val isPeriodDay = records.any { record ->
+        val end = record.endDate ?: LocalDate.now()
+        !date.isBefore(record.startDate) && !date.isAfter(end)
+    }
     if (isPeriodDay) return DayMarker.PERIOD
 
     val ovulation = predictions.ovulationDate
@@ -623,36 +680,63 @@ private fun resolveMarker(date: LocalDate, records: List<PeriodRecord>, predicti
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DatePickerField(
-    label: String,
-    value: String,
-    onDateSelected: (String) -> Unit
+private fun PeriodRangeField(
+    startDate: String,
+    endDate: String,
+    isOngoing: Boolean,
+    onRangeSelected: (String, String?) -> Unit
 ) {
     var showPicker by remember { mutableStateOf(false) }
-    val datePickerState = androidx.compose.material3.rememberDatePickerState(
-        initialSelectedDateMillis = value.toDateMillisOrNull()
+    val today = LocalDate.now()
+    val minDate = YearMonth.now().atDay(1)
+    val minDateMillis = minDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val maxDateMillis = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val rangePickerState = androidx.compose.material3.rememberDateRangePickerState(
+        initialSelectedStartDateMillis = startDate.toDateMillisOrNull(),
+        initialSelectedEndDateMillis = endDate.toDateMillisOrNull(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis in minDateMillis..maxDateMillis
+            }
+        }
     )
 
+    val displayText = when {
+        startDate.isBlank() -> "Sin periodo seleccionado"
+        isOngoing -> "${startDate.toDisplayDate()} - En curso"
+        endDate.isBlank() -> startDate.toDisplayDate()
+        else -> "${startDate.toDisplayDate()} - ${endDate.toDisplayDate()}"
+    }
+
     OutlinedTextField(
-        value = value.toDisplayDate(),
+        value = displayText,
         onValueChange = {},
         readOnly = true,
-        label = { Text(label) },
+        label = { Text("Periodo") },
         modifier = Modifier.fillMaxWidth()
     )
 
     Button(onClick = { showPicker = true }, modifier = Modifier.fillMaxWidth()) {
-        Text("Seleccionar $label")
+        Text("Seleccionar periodo")
     }
 
     if (showPicker) {
+        val persistSelection = {
+            rangePickerState.selectedStartDateMillis?.let { startMillis ->
+                val start = startMillis.toIsoLocalDate()
+                val end = rangePickerState.selectedEndDateMillis?.toIsoLocalDate()
+                onRangeSelected(start, end)
+            }
+        }
+
         DatePickerDialog(
-            onDismissRequest = { showPicker = false },
+            onDismissRequest = {
+                persistSelection()
+                showPicker = false
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        onDateSelected(millis.toIsoLocalDate())
-                    }
+                    persistSelection()
                     showPicker = false
                 }) {
                     Text("Aceptar")
@@ -664,7 +748,7 @@ private fun DatePickerField(
                 }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DateRangePicker(state = rangePickerState)
         }
     }
 }
@@ -676,7 +760,6 @@ private fun FlowSelector(
     onSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-
     Column {
         OutlinedTextField(
             value = selected,
@@ -695,6 +778,42 @@ private fun FlowSelector(
             onDismissRequest = { expanded = false }
         ) {
             flowOptions.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelected(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PainSelector(
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Dolor (1-10)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Seleccionar dolor")
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            painOptions.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option) },
                     onClick = {

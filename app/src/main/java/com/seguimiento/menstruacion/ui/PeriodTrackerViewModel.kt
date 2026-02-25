@@ -24,6 +24,7 @@ data class PeriodFormState(
     val editingRecordId: Long? = null,
     val startDate: String = "",
     val endDate: String = "",
+    val isOngoing: Boolean = false,
     val flowLevel: String = "Medio",
     val selectedSymptoms: Set<String> = emptySet(),
     val customSymptomsText: String = "",
@@ -121,13 +122,37 @@ class PeriodTrackerViewModel(
             repository.observeRecords().collect { records ->
                 if (remindersEnabledState.value) {
                     reminderScheduler.schedule(repository.buildPredictions(records))
+                    if (records.any { it.isOngoing }) {
+                        reminderScheduler.scheduleDailyOngoingReminder()
+                    } else {
+                        reminderScheduler.cancelDailyOngoingReminder()
+                    }
                 }
             }
         }
     }
 
-    fun onStartDateChanged(value: String) = formState.update { it.copy(startDate = value, error = null) }
-    fun onEndDateChanged(value: String) = formState.update { it.copy(endDate = value, error = null) }
+    fun onPeriodRangeChanged(startDate: String, endDate: String?) {
+        formState.update {
+            it.copy(
+                startDate = startDate,
+                endDate = endDate ?: "",
+                isOngoing = endDate == null,
+                error = null
+            )
+        }
+    }
+
+    fun onOngoingChanged(isOngoing: Boolean) {
+        formState.update {
+            it.copy(
+                isOngoing = isOngoing,
+                endDate = if (isOngoing) "" else it.endDate,
+                error = null
+            )
+        }
+    }
+
     fun onFlowChanged(value: String) = formState.update { it.copy(flowLevel = value, error = null) }
     fun onCustomSymptomsChanged(value: String) = formState.update { it.copy(customSymptomsText = value, error = null) }
     fun onPainChanged(value: String) = formState.update { it.copy(painLevel = value, error = null) }
@@ -187,6 +212,9 @@ class PeriodTrackerViewModel(
 
         if (enabled) {
             reminderScheduler.schedule(uiState.value.predictions)
+            if (uiState.value.records.any { it.isOngoing }) {
+                reminderScheduler.scheduleDailyOngoingReminder()
+            }
         } else {
             reminderScheduler.cancelAll()
         }
@@ -198,7 +226,8 @@ class PeriodTrackerViewModel(
         formState.value = PeriodFormState(
             editingRecordId = record.id,
             startDate = record.startDate.toString(),
-            endDate = record.endDate.toString(),
+            endDate = record.endDate?.toString().orEmpty(),
+            isOngoing = record.isOngoing,
             flowLevel = record.flowLevel,
             selectedSymptoms = predefined,
             customSymptomsText = custom,
@@ -228,13 +257,14 @@ class PeriodTrackerViewModel(
         val startDate = parseDate(form.startDate)
         val endDate = parseDate(form.endDate)
         val pain = form.painLevel.toIntOrNull()
+        val effectiveIsOngoing = form.isOngoing || endDate == null
 
-        if (startDate == null || endDate == null) {
-            formState.update { it.copy(error = "Formato de fecha inválido. Usa YYYY-MM-DD") }
+        if (startDate == null) {
+            formState.update { it.copy(error = "Selecciona el inicio del periodo") }
             return
         }
 
-        if (endDate.isBefore(startDate)) {
+        if (!effectiveIsOngoing && endDate != null && endDate.isBefore(startDate)) {
             formState.update { it.copy(error = "La fecha de fin no puede ser anterior al inicio") }
             return
         }
@@ -250,7 +280,8 @@ class PeriodTrackerViewModel(
         val record = PeriodRecord(
             id = form.editingRecordId ?: 0,
             startDate = startDate,
-            endDate = endDate,
+            endDate = if (effectiveIsOngoing) null else endDate,
+            isOngoing = effectiveIsOngoing,
             flowLevel = form.flowLevel,
             symptoms = symptoms,
             painLevel = pain,

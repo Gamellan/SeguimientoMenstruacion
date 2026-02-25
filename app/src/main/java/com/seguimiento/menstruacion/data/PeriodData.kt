@@ -17,7 +17,8 @@ import kotlinx.coroutines.flow.Flow
 data class PeriodRecordEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val startDate: String,
-    val endDate: String,
+    val endDate: String?,
+    val isOngoing: Boolean,
     val flowLevel: String,
     val symptoms: String,
     val painLevel: Int,
@@ -39,7 +40,7 @@ interface PeriodRecordDao {
     fun observeAll(): Flow<List<PeriodRecordEntity>>
 }
 
-@Database(entities = [PeriodRecordEntity::class], version = 2, exportSchema = false)
+@Database(entities = [PeriodRecordEntity::class], version = 3, exportSchema = false)
 abstract class PeriodDatabase : RoomDatabase() {
     abstract fun periodRecordDao(): PeriodRecordDao
 

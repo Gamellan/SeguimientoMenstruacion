@@ -32,6 +32,27 @@ class ReminderScheduler(private val context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.cancel(buildPendingIntent(REQUEST_PERIOD, "", ""))
         alarmManager.cancel(buildPendingIntent(REQUEST_OVULATION, "", ""))
+        alarmManager.cancel(buildPendingIntent(REQUEST_ONGOING_DAILY, "", ""))
+    }
+
+    fun scheduleDailyOngoingReminder() {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val triggerAtMillis = nextDailyTriggerMillis(hour = 20, minute = 0)
+        alarmManager.setInexactRepeating(
+            AlarmManager.RTC_WAKEUP,
+            triggerAtMillis,
+            AlarmManager.INTERVAL_DAY,
+            buildPendingIntent(
+                REQUEST_ONGOING_DAILY,
+                "¿Cómo va tu periodo?",
+                "Actualiza síntomas, dolor o fecha de fin si ya terminó."
+            )
+        )
+    }
+
+    fun cancelDailyOngoingReminder() {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(buildPendingIntent(REQUEST_ONGOING_DAILY, "", ""))
     }
 
     private fun scheduleIfFuture(requestCode: Int, date: LocalDate?, title: String, message: String) {
@@ -64,9 +85,19 @@ class ReminderScheduler(private val context: Context) {
         )
     }
 
+    private fun nextDailyTriggerMillis(hour: Int, minute: Int): Long {
+        val now = LocalDateTime.now()
+        var candidate = now.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
+        if (!candidate.isAfter(now)) {
+            candidate = candidate.plusDays(1)
+        }
+        return candidate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
+
     companion object {
         private const val REQUEST_PERIOD = 1001
         private const val REQUEST_OVULATION = 1002
+        private const val REQUEST_ONGOING_DAILY = 1003
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_MESSAGE = "extra_message"
     }
