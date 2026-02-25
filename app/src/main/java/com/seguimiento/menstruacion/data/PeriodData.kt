@@ -10,6 +10,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "period_records")
@@ -28,11 +29,17 @@ interface PeriodRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: PeriodRecordEntity)
 
+    @Update
+    suspend fun update(record: PeriodRecordEntity)
+
+    @Query("DELETE FROM period_records WHERE id = :recordId")
+    suspend fun deleteById(recordId: Long)
+
     @Query("SELECT * FROM period_records ORDER BY startDate DESC")
     fun observeAll(): Flow<List<PeriodRecordEntity>>
 }
 
-@Database(entities = [PeriodRecordEntity::class], version = 1, exportSchema = false)
+@Database(entities = [PeriodRecordEntity::class], version = 2, exportSchema = false)
 abstract class PeriodDatabase : RoomDatabase() {
     abstract fun periodRecordDao(): PeriodRecordDao
 
@@ -46,7 +53,9 @@ abstract class PeriodDatabase : RoomDatabase() {
                     context.applicationContext,
                     PeriodDatabase::class.java,
                     "period_tracker_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

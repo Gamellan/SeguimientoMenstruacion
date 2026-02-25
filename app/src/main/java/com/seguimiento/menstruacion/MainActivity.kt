@@ -5,16 +5,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.CreationExtras
+import com.seguimiento.menstruacion.data.AppPreferences
 import com.seguimiento.menstruacion.data.PeriodDatabase
 import com.seguimiento.menstruacion.data.PeriodRepository
+import com.seguimiento.menstruacion.notifications.ReminderScheduler
 import com.seguimiento.menstruacion.ui.PeriodTrackerScreen
 import com.seguimiento.menstruacion.ui.PeriodTrackerViewModel
 import com.seguimiento.menstruacion.ui.PeriodTrackerViewModelFactory
+import com.seguimiento.menstruacion.ui.theme.PeriodAppTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -24,7 +25,9 @@ class MainActivity : ComponentActivity() {
             PeriodTrackerViewModelFactory(
                 repository = PeriodRepository(
                     PeriodDatabase.getDatabase(applicationContext).periodRecordDao()
-                )
+                ),
+                preferences = AppPreferences(applicationContext),
+                reminderScheduler = ReminderScheduler(applicationContext)
             )
         )[PeriodTrackerViewModel::class.java]
     }
@@ -33,8 +36,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            PeriodAppTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
                     PeriodTrackerScreen(viewModel = viewModel)
                 }
             }

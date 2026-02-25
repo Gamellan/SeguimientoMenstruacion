@@ -6,11 +6,25 @@ Aplicación Android nativa (Kotlin + Jetpack Compose) para registrar ciclos mens
 
 - Registro de fecha de inicio y fin.
 - Registro de cantidad de sangre (ligero, medio, abundante).
-- Registro de síntomas, nivel de dolor (1-10) y notas.
+- Registro de síntomas estructurados (chips) + síntomas libres, nivel de dolor (1-10) y notas.
 - Historial de ciclos guardados.
+- Edición y borrado de registros existentes.
 - Predicción de próxima menstruación.
 - Estimación de ovulación (14 días antes de la siguiente menstruación estimada).
+- Calendario mensual visual (en pantalla principal) con navegación entre meses y marcadores de menstruación, ventana fértil y ovulación estimada.
+- Estadísticas: duración media de ciclo, duración media de menstruación, variabilidad y dolor medio.
+- Onboarding inicial de 3 pasos para primer uso.
+- Sección de configuración para activar/desactivar notificaciones locales de próxima menstruación y ovulación.
 - **Privacidad:** datos guardados solo en local con Room (sin nube, sin login).
+
+## Pantallas
+
+- Inicio: calendario, predicciones y accesos rápidos.
+- Estadísticas: vista dedicada con métricas del ciclo.
+- Configuración: interruptor de notificaciones.
+- Crear registro: formulario dedicado.
+- Histórico: listado de registros con acceso a edición.
+- Editar registro: formulario dedicado para actualizar datos.
 
 ## Estructura principal
 
@@ -35,3 +49,8 @@ Aplicación Android nativa (Kotlin + Jetpack Compose) para registrar ciclos mens
 - Si hay menos de 2 registros, se usa ciclo por defecto de 28 días.
 - Con 2 o más registros, se calcula una media de días entre fechas de inicio de periodos.
 - La ovulación estimada se calcula restando 14 días a la próxima menstruación estimada.
+
+## Notas de recordatorios
+
+- Los recordatorios usan notificaciones locales del dispositivo (sin servicios externos).
+- En Android 13+ la app solicita permiso de notificaciones al activarlos.

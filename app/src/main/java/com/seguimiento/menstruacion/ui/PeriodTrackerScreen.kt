@@ -1,7 +1,15 @@
 package com.seguimiento.menstruacion.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,152 +20,605 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
+import com.seguimiento.menstruacion.data.PeriodPredictions
+import com.seguimiento.menstruacion.data.PeriodRecord
+import com.seguimiento.menstruacion.data.PeriodStatistics
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val flowOptions = listOf("Ligero", "Medio", "Abundante")
+private val weekDayLabels = listOf("L", "M", "X", "J", "V", "S", "D")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeriodTrackerScreen(viewModel: PeriodTrackerViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    if (uiState.showOnboarding) {
+        OnboardingScreen(onFinish = viewModel::completeOnboarding)
+        return
+    }
+
+    val screenTitle = when (uiState.currentScreen) {
+        AppScreen.HOME -> "Seguimiento menstrual"
+        AppScreen.SETTINGS -> "Configuración"
+        AppScreen.STATISTICS -> "Estadísticas"
+        AppScreen.CREATE_RECORD -> "Nuevo registro"
+        AppScreen.HISTORY -> "Histórico"
+        AppScreen.EDIT_RECORD -> "Editar registro"
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Seguimiento menstrual") }
+            if (uiState.currentScreen != AppScreen.HOME) {
+                TopAppBar(title = { Text(screenTitle) })
+            }
+        },
+        bottomBar = {
+            BottomNavigationBar(
+                currentScreen = uiState.currentScreen,
+                onGoHome = viewModel::goToHome,
+                onGoCreate = viewModel::goToCreateRecord,
+                onGoHistory = viewModel::goToHistory,
+                onGoSettings = viewModel::goToSettings
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Predicciones", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Duración media del ciclo: ${uiState.predictions.averageCycleLengthDays} días")
-                        Text(
-                            "Próxima menstruación: ${uiState.predictions.nextPeriodDate?.format(formatter) ?: "Sin datos suficientes"}"
-                        )
-                        Text(
-                            "Ovulación estimada: ${uiState.predictions.ovulationDate?.format(formatter) ?: "Sin datos suficientes"}"
-                        )
-                    }
-                }
+            when (uiState.currentScreen) {
+                AppScreen.HOME -> HomeScreen(
+                    records = uiState.records,
+                    predictions = uiState.predictions,
+                    visibleMonth = uiState.visibleMonth,
+                    onPreviousMonth = viewModel::previousMonth,
+                    onNextMonth = viewModel::nextMonth,
+                    onGoToStatistics = viewModel::goToStatistics,
+                    onGoToSettings = viewModel::goToSettings,
+                    onGoToCreate = viewModel::goToCreateRecord,
+                    onGoToHistory = viewModel::goToHistory
+                )
+
+                AppScreen.STATISTICS -> StatisticsScreen(
+                    statistics = uiState.statistics,
+                    onBack = viewModel::goToHome
+                )
+
+                AppScreen.SETTINGS -> SettingsScreen(
+                    remindersEnabled = uiState.remindersEnabled,
+                    onSetRemindersEnabled = viewModel::setRemindersEnabled,
+                    onBack = viewModel::goToHome
+                )
+
+                AppScreen.CREATE_RECORD -> RecordFormScreen(
+                    viewModel = viewModel,
+                    isEditing = false,
+                    onBack = viewModel::goToHome
+                )
+
+                AppScreen.HISTORY -> HistoryScreen(
+                    records = uiState.records,
+                    onEdit = viewModel::editRecord,
+                    onDelete = viewModel::deleteRecord,
+                    onBack = viewModel::goToHome
+                )
+
+                AppScreen.EDIT_RECORD -> RecordFormScreen(
+                    viewModel = viewModel,
+                    isEditing = true,
+                    onBack = viewModel::cancelEdit
+                )
             }
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Nuevo registro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        DatePickerField(
-                            label = "Fecha inicio",
-                            value = uiState.form.startDate,
-                            onDateSelected = viewModel::onStartDateChanged
-                        )
-                        DatePickerField(
-                            label = "Fecha fin",
-                            value = uiState.form.endDate,
-                            onDateSelected = viewModel::onEndDateChanged
-                        )
-                        FlowSelector(
-                            selected = uiState.form.flowLevel,
-                            onSelected = viewModel::onFlowChanged
-                        )
-                        OutlinedTextField(
-                            value = uiState.form.symptomsText,
-                            onValueChange = viewModel::onSymptomsChanged,
-                            label = { Text("Síntomas (separados por comas)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = uiState.form.painLevel,
-                            onValueChange = viewModel::onPainChanged,
-                            label = { Text("Dolor (1-10)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = uiState.form.notes,
-                            onValueChange = viewModel::onNotesChanged,
-                            label = { Text("Notas") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        uiState.form.error?.let {
-                            Text(it, color = MaterialTheme.colorScheme.error)
-                        }
-
-                        Button(
-                            onClick = viewModel::saveRecord,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Guardar registro")
-                        }
-                    }
-                }
-            }
-
-            item {
-                Text("Historial", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-
-            if (uiState.records.isEmpty()) {
-                item {
-                    Text("Aún no hay registros")
-                }
-            } else {
-                items(uiState.records, key = { it.id }) { record ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "${record.startDate.format(formatter)} - ${record.endDate.format(formatter)}",
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text("Flujo: ${record.flowLevel}")
-                            Text("Dolor: ${record.painLevel}/10")
-                            if (record.symptoms.isNotEmpty()) {
-                                Text("Síntomas: ${record.symptoms.joinToString()}")
-                            }
-                            if (record.notes.isNotBlank()) {
-                                Text("Notas: ${record.notes}")
-                            }
-                        }
-                    }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
+}
+
+@Composable
+private fun HomeScreen(
+    records: List<PeriodRecord>,
+    predictions: PeriodPredictions,
+    visibleMonth: YearMonth,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onGoToStatistics: () -> Unit,
+    onGoToSettings: () -> Unit,
+    onGoToCreate: () -> Unit,
+    onGoToHistory: () -> Unit
+) {
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CycleCalendar(
+                        records = records,
+                        predictions = predictions,
+                        visibleMonth = visibleMonth,
+                        onPreviousMonth = onPreviousMonth,
+                        onNextMonth = onNextMonth
+                    )
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Próxima menstruación", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        predictions.nextPeriodDate?.format(formatter) ?: "Sin datos suficientes",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Ovulación estimada: ${predictions.ovulationDate?.format(formatter) ?: "Sin datos suficientes"}")
+                    Text("Ciclo promedio: ${predictions.averageCycleLengthDays} días", style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = onGoToStatistics, modifier = Modifier.fillMaxWidth()) {
+                        Text("Ver estadísticas")
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onGoToCreate, modifier = Modifier.weight(1f)) { Text("Crear") }
+                Button(onClick = onGoToHistory, modifier = Modifier.weight(1f)) { Text("Histórico") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatisticsScreen(
+    statistics: PeriodStatistics,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Resumen", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Duración media de ciclo: ${statistics.averageCycleLengthDays} días")
+                Text("Duración media de menstruación: ${statistics.averagePeriodLengthDays} días")
+                Text("Variabilidad del ciclo: ±${statistics.cycleVariabilityDays} días")
+                Text("Dolor medio: ${statistics.averagePainLevel}/10")
+            }
+        }
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("Volver")
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    remindersEnabled: Boolean,
+    onSetRemindersEnabled: (Boolean) -> Unit,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        onSetRemindersEnabled(granted)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Notificaciones")
+                    Text("Recordatorios de próxima menstruación y ovulación", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(
+                    checked = remindersEnabled,
+                    onCheckedChange = { checked ->
+                        if (!checked) {
+                            onSetRemindersEnabled(false)
+                            return@Switch
+                        }
+
+                        val needsPermission =
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != PackageManager.PERMISSION_GRANTED
+
+                        if (needsPermission) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            onSetRemindersEnabled(true)
+                        }
+                    }
+                )
+            }
+        }
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("Volver")
+        }
+    }
+}
+
+@Composable
+private fun HistoryScreen(
+    records: List<PeriodRecord>,
+    onEdit: (PeriodRecord) -> Unit,
+    onDelete: (Long) -> Unit,
+    onBack: () -> Unit
+) {
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (records.isEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("🩷", style = MaterialTheme.typography.headlineMedium)
+                        Text("Aún no hay registros", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Empieza creando tu primer ciclo para ver historial y estadísticas.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Button(onClick = onBack) {
+                            Text("Crear primer registro")
+                        }
+                    }
+                }
+            }
+        } else {
+            items(records, key = { it.id }) { record ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "${record.startDate.format(formatter)} - ${record.endDate.format(formatter)}",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text("Flujo: ${record.flowLevel}")
+                        Text("Dolor: ${record.painLevel}/10")
+                        if (record.symptoms.isNotEmpty()) {
+                            Text("Síntomas: ${record.symptoms.joinToString()}")
+                        }
+                        if (record.notes.isNotBlank()) {
+                            Text("Notas: ${record.notes}")
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { onEdit(record) }) { Text("Editar") }
+                            TextButton(
+                                onClick = { onDelete(record.id) },
+                            ) {
+                                Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecordFormScreen(
+    viewModel: PeriodTrackerViewModel,
+    isEditing: Boolean,
+    onBack: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val form = uiState.form
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item { TextButton(onClick = onBack) { Text("Volver") } }
+        item {
+            DatePickerField(
+                label = "Fecha inicio",
+                value = form.startDate,
+                onDateSelected = viewModel::onStartDateChanged
+            )
+        }
+        item {
+            DatePickerField(
+                label = "Fecha fin",
+                value = form.endDate,
+                onDateSelected = viewModel::onEndDateChanged
+            )
+        }
+        item {
+            FlowSelector(
+                selected = form.flowLevel,
+                onSelected = viewModel::onFlowChanged
+            )
+        }
+        item { Text("Síntomas frecuentes") }
+        item {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                viewModel.availableSymptoms().forEach { symptom ->
+                    FilterChip(
+                        selected = form.selectedSymptoms.contains(symptom),
+                        onClick = { viewModel.togglePredefinedSymptom(symptom) },
+                        label = { Text(symptom) }
+                    )
+                }
+            }
+        }
+        item {
+            OutlinedTextField(
+                value = form.customSymptomsText,
+                onValueChange = viewModel::onCustomSymptomsChanged,
+                label = { Text("Otros síntomas (separados por comas)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        item {
+            OutlinedTextField(
+                value = form.painLevel,
+                onValueChange = viewModel::onPainChanged,
+                label = { Text("Dolor (1-10)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        item {
+            OutlinedTextField(
+                value = form.notes,
+                onValueChange = viewModel::onNotesChanged,
+                label = { Text("Notas") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        form.error?.let { errorText ->
+            item { Text(errorText, color = MaterialTheme.colorScheme.error) }
+        }
+        item {
+            Button(onClick = viewModel::saveRecord, modifier = Modifier.fillMaxWidth()) {
+                Text(if (isEditing) "Actualizar registro" else "Guardar registro")
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomNavigationBar(
+    currentScreen: AppScreen,
+    onGoHome: () -> Unit,
+    onGoCreate: () -> Unit,
+    onGoHistory: () -> Unit,
+    onGoSettings: () -> Unit
+) {
+    Surface(tonalElevation = 4.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BottomNavItem(
+                label = "Inicio",
+                selected = currentScreen == AppScreen.HOME,
+                onClick = onGoHome
+            )
+            BottomNavItem(
+                label = "Crear",
+                selected = currentScreen == AppScreen.CREATE_RECORD,
+                onClick = onGoCreate
+            )
+            BottomNavItem(
+                label = "Histórico",
+                selected = currentScreen == AppScreen.HISTORY || currentScreen == AppScreen.EDIT_RECORD,
+                onClick = onGoHistory
+            )
+            BottomNavItem(
+                label = "Ajustes",
+                selected = currentScreen == AppScreen.SETTINGS,
+                onClick = onGoSettings
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    TextButton(onClick = onClick) {
+        Text(
+            label,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun OnboardingScreen(onFinish: () -> Unit) {
+    val pages = listOf(
+        "Registra tu ciclo" to "Guarda inicio, fin, flujo, síntomas y dolor en segundos.",
+        "Entiende tus patrones" to "Consulta estadísticas y calendario para ver tendencias.",
+        "Recibe predicciones" to "Activa recordatorios locales para próxima menstruación y ovulación."
+    )
+    var currentPage by remember { mutableStateOf(0) }
+
+    Scaffold { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Bienvenida", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Paso ${currentPage + 1} de ${pages.size}")
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(pages[currentPage].first, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(pages[currentPage].second)
+            }
+
+            Button(
+                onClick = {
+                    if (currentPage < pages.lastIndex) currentPage += 1 else onFinish()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (currentPage < pages.lastIndex) "Siguiente" else "Empezar")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CycleCalendar(
+    records: List<PeriodRecord>,
+    predictions: PeriodPredictions,
+    visibleMonth: YearMonth,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
+    val firstDay = visibleMonth.atDay(1)
+    val leadingEmptyCells = firstDay.dayOfWeek.value - 1
+    val allDates = mutableListOf<LocalDate?>()
+
+    repeat(leadingEmptyCells) { allDates.add(null) }
+    (1..visibleMonth.lengthOfMonth()).forEach { day -> allDates.add(visibleMonth.atDay(day)) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onPreviousMonth) { Text("‹") }
+        Text(
+            "${visibleMonth.month.name.lowercase().replaceFirstChar { it.uppercase() }} ${visibleMonth.year}",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        TextButton(onClick = onNextMonth) { Text("›") }
+    }
+
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        weekDayLabels.forEach { Text(it, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold) }
+    }
+
+    allDates.chunked(7).forEach { week ->
+        Row(modifier = Modifier.fillMaxWidth()) {
+            week.forEach { date ->
+                val marker = date?.let { resolveMarker(it, records, predictions) } ?: DayMarker.NONE
+                val containerColor = when (marker) {
+                    DayMarker.PERIOD -> MaterialTheme.colorScheme.primaryContainer
+                    DayMarker.FERTILE -> MaterialTheme.colorScheme.tertiaryContainer
+                    DayMarker.OVULATION -> MaterialTheme.colorScheme.secondaryContainer
+                    DayMarker.NONE -> MaterialTheme.colorScheme.surfaceVariant
+                }
+                val textColor = when (marker) {
+                    DayMarker.PERIOD -> MaterialTheme.colorScheme.onPrimaryContainer
+                    DayMarker.FERTILE -> MaterialTheme.colorScheme.onTertiaryContainer
+                    DayMarker.OVULATION -> MaterialTheme.colorScheme.onSecondaryContainer
+                    DayMarker.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = containerColor),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = date?.dayOfMonth?.toString() ?: "", color = textColor)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private enum class DayMarker { NONE, PERIOD, FERTILE, OVULATION }
+
+private fun resolveMarker(date: LocalDate, records: List<PeriodRecord>, predictions: PeriodPredictions): DayMarker {
+    val isPeriodDay = records.any { record -> !date.isBefore(record.startDate) && !date.isAfter(record.endDate) }
+    if (isPeriodDay) return DayMarker.PERIOD
+
+    val ovulation = predictions.ovulationDate
+    if (ovulation != null) {
+        if (date == ovulation) return DayMarker.OVULATION
+        if (!date.isBefore(ovulation.minusDays(5)) && !date.isAfter(ovulation)) return DayMarker.FERTILE
+    }
+    return DayMarker.NONE
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -173,7 +634,7 @@ private fun DatePickerField(
     )
 
     OutlinedTextField(
-        value = value,
+        value = value.toDisplayDate(),
         onValueChange = {},
         readOnly = true,
         label = { Text(label) },
@@ -208,22 +669,6 @@ private fun DatePickerField(
     }
 }
 
-private fun String.toDateMillisOrNull(): Long? {
-    return runCatching {
-        LocalDate.parse(this)
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }.getOrNull()
-}
-
-private fun Long.toIsoLocalDate(): String {
-    return Instant.ofEpochMilli(this)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-        .toString()
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FlowSelector(
@@ -232,21 +677,20 @@ private fun FlowSelector(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
+    Column {
         OutlinedTextField(
             value = selected,
             onValueChange = {},
             readOnly = true,
             label = { Text("Cantidad de sangre") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         )
-        ExposedDropdownMenu(
+
+        Button(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Seleccionar cantidad")
+        }
+
+        DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
@@ -261,4 +705,26 @@ private fun FlowSelector(
             }
         }
     }
+}
+
+private fun String.toDateMillisOrNull(): Long? {
+    return runCatching {
+        LocalDate.parse(this)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }.getOrNull()
+}
+
+private fun String.toDisplayDate(): String {
+    return runCatching {
+        LocalDate.parse(this).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+    }.getOrDefault(this)
+}
+
+private fun Long.toIsoLocalDate(): String {
+    return Instant.ofEpochMilli(this)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .toString()
 }

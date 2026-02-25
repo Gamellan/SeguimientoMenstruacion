@@ -3,10 +3,14 @@ package com.seguimiento.menstruacion.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.seguimiento.menstruacion.data.AppPreferences
 import com.seguimiento.menstruacion.data.PeriodPredictions
 import com.seguimiento.menstruacion.data.PeriodRecord
 import com.seguimiento.menstruacion.data.PeriodRepository
+import com.seguimiento.menstruacion.data.PeriodStatistics
+import com.seguimiento.menstruacion.notifications.ReminderScheduler
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeParseException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,35 +21,94 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class PeriodFormState(
+    val editingRecordId: Long? = null,
     val startDate: String = "",
     val endDate: String = "",
     val flowLevel: String = "Medio",
-    val symptomsText: String = "",
+    val selectedSymptoms: Set<String> = emptySet(),
+    val customSymptomsText: String = "",
     val painLevel: String = "5",
     val notes: String = "",
     val error: String? = null
 )
 
 data class PeriodTrackerUiState(
+    val currentScreen: AppScreen = AppScreen.HOME,
+    val showOnboarding: Boolean = true,
+    val remindersEnabled: Boolean = false,
+    val visibleMonth: YearMonth = YearMonth.now(),
     val form: PeriodFormState = PeriodFormState(),
     val records: List<PeriodRecord> = emptyList(),
-    val predictions: PeriodPredictions = PeriodPredictions(null, null, 28)
+    val predictions: PeriodPredictions = PeriodPredictions(null, null, 28),
+    val statistics: PeriodStatistics = PeriodStatistics(28, 5, 0, 0)
 )
 
+enum class AppScreen {
+    HOME,
+    SETTINGS,
+    STATISTICS,
+    CREATE_RECORD,
+    HISTORY,
+    EDIT_RECORD
+}
+
 class PeriodTrackerViewModel(
-    private val repository: PeriodRepository
+    private val repository: PeriodRepository,
+    private val preferences: AppPreferences,
+    private val reminderScheduler: ReminderScheduler
 ) : ViewModel() {
 
-    private val formState = MutableStateFlow(PeriodFormState())
+    private data class CoreUiData(
+        val form: PeriodFormState,
+        val records: List<PeriodRecord>,
+        val showOnboarding: Boolean,
+        val remindersEnabled: Boolean
+    )
 
-    val uiState: StateFlow<PeriodTrackerUiState> = combine(
+    private val formState = MutableStateFlow(PeriodFormState())
+    private val onboardingState = MutableStateFlow(!preferences.isOnboardingCompleted())
+    private val remindersEnabledState = MutableStateFlow(preferences.isRemindersEnabled())
+    private val currentScreenState = MutableStateFlow(AppScreen.HOME)
+    private val visibleMonthState = MutableStateFlow(YearMonth.now())
+
+    private val predefinedSymptoms = listOf(
+        "Cólicos",
+        "Cefalea",
+        "Hinchazón",
+        "Acné",
+        "Fatiga",
+        "Náuseas",
+        "Cambios de humor"
+    )
+
+    private val coreUiData = combine(
         formState,
-        repository.observeRecords()
-    ) { form, records ->
-        PeriodTrackerUiState(
+        repository.observeRecords(),
+        onboardingState,
+        remindersEnabledState
+    ) { form, records, showOnboarding, remindersEnabled ->
+        CoreUiData(
             form = form,
             records = records,
-            predictions = repository.buildPredictions(records)
+            showOnboarding = showOnboarding,
+            remindersEnabled = remindersEnabled
+        )
+    }
+
+    val uiState: StateFlow<PeriodTrackerUiState> = combine(
+        coreUiData,
+        currentScreenState,
+        visibleMonthState
+    ) { core, currentScreen, visibleMonth ->
+        PeriodTrackerUiState(
+            currentScreen = currentScreen,
+            showOnboarding = core.showOnboarding,
+            remindersEnabled = core.remindersEnabled,
+            visibleMonth = visibleMonth,
+            form = core.form,
+            records = core.records,
+            predictions = repository.buildPredictions(core.records),
+            statistics = repository.buildStatistics(core.records)
         )
     }.stateIn(
         scope = viewModelScope,
@@ -53,12 +116,112 @@ class PeriodTrackerViewModel(
         initialValue = PeriodTrackerUiState()
     )
 
+    init {
+        viewModelScope.launch {
+            repository.observeRecords().collect { records ->
+                if (remindersEnabledState.value) {
+                    reminderScheduler.schedule(repository.buildPredictions(records))
+                }
+            }
+        }
+    }
+
     fun onStartDateChanged(value: String) = formState.update { it.copy(startDate = value, error = null) }
     fun onEndDateChanged(value: String) = formState.update { it.copy(endDate = value, error = null) }
     fun onFlowChanged(value: String) = formState.update { it.copy(flowLevel = value, error = null) }
-    fun onSymptomsChanged(value: String) = formState.update { it.copy(symptomsText = value, error = null) }
+    fun onCustomSymptomsChanged(value: String) = formState.update { it.copy(customSymptomsText = value, error = null) }
     fun onPainChanged(value: String) = formState.update { it.copy(painLevel = value, error = null) }
     fun onNotesChanged(value: String) = formState.update { it.copy(notes = value, error = null) }
+
+    fun availableSymptoms(): List<String> = predefinedSymptoms
+
+    fun togglePredefinedSymptom(symptom: String) {
+        formState.update { current ->
+            val updated = current.selectedSymptoms.toMutableSet()
+            if (updated.contains(symptom)) {
+                updated.remove(symptom)
+            } else {
+                updated.add(symptom)
+            }
+            current.copy(selectedSymptoms = updated, error = null)
+        }
+    }
+
+    fun completeOnboarding() {
+        onboardingState.value = false
+        preferences.setOnboardingCompleted(true)
+    }
+
+    fun goToHome() {
+        currentScreenState.value = AppScreen.HOME
+    }
+
+    fun goToSettings() {
+        currentScreenState.value = AppScreen.SETTINGS
+    }
+
+    fun goToStatistics() {
+        currentScreenState.value = AppScreen.STATISTICS
+    }
+
+    fun goToCreateRecord() {
+        formState.value = PeriodFormState(flowLevel = formState.value.flowLevel)
+        currentScreenState.value = AppScreen.CREATE_RECORD
+    }
+
+    fun goToHistory() {
+        currentScreenState.value = AppScreen.HISTORY
+    }
+
+    fun nextMonth() {
+        visibleMonthState.value = visibleMonthState.value.plusMonths(1)
+    }
+
+    fun previousMonth() {
+        visibleMonthState.value = visibleMonthState.value.minusMonths(1)
+    }
+
+    fun setRemindersEnabled(enabled: Boolean) {
+        remindersEnabledState.value = enabled
+        preferences.setRemindersEnabled(enabled)
+
+        if (enabled) {
+            reminderScheduler.schedule(uiState.value.predictions)
+        } else {
+            reminderScheduler.cancelAll()
+        }
+    }
+
+    fun editRecord(record: PeriodRecord) {
+        val predefined = record.symptoms.filter { predefinedSymptoms.contains(it) }.toSet()
+        val custom = record.symptoms.filterNot { predefinedSymptoms.contains(it) }.joinToString(", ")
+        formState.value = PeriodFormState(
+            editingRecordId = record.id,
+            startDate = record.startDate.toString(),
+            endDate = record.endDate.toString(),
+            flowLevel = record.flowLevel,
+            selectedSymptoms = predefined,
+            customSymptomsText = custom,
+            painLevel = record.painLevel.toString(),
+            notes = record.notes,
+            error = null
+        )
+        currentScreenState.value = AppScreen.EDIT_RECORD
+    }
+
+    fun cancelEdit() {
+        formState.value = PeriodFormState(flowLevel = formState.value.flowLevel)
+        currentScreenState.value = AppScreen.HISTORY
+    }
+
+    fun deleteRecord(recordId: Long) {
+        viewModelScope.launch {
+            repository.deleteRecord(recordId)
+            if (formState.value.editingRecordId == recordId) {
+                cancelEdit()
+            }
+        }
+    }
 
     fun saveRecord() {
         val form = formState.value
@@ -81,23 +244,28 @@ class PeriodTrackerViewModel(
             return
         }
 
+        val customSymptoms = form.customSymptomsText.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val symptoms = (form.selectedSymptoms + customSymptoms).toList()
+
         val record = PeriodRecord(
-            id = 0,
+            id = form.editingRecordId ?: 0,
             startDate = startDate,
             endDate = endDate,
             flowLevel = form.flowLevel,
-            symptoms = form.symptomsText.split(",").map { it.trim() }.filter { it.isNotBlank() },
+            symptoms = symptoms,
             painLevel = pain,
             notes = form.notes
         )
 
         viewModelScope.launch {
-            repository.addRecord(record)
-            formState.update {
-                PeriodFormState(
-                    flowLevel = it.flowLevel
-                )
+            if (form.editingRecordId == null) {
+                repository.addRecord(record)
+                currentScreenState.value = AppScreen.HOME
+            } else {
+                repository.updateRecord(record)
+                currentScreenState.value = AppScreen.HISTORY
             }
+            formState.update { PeriodFormState(flowLevel = it.flowLevel) }
         }
     }
 
@@ -111,12 +279,14 @@ class PeriodTrackerViewModel(
 }
 
 class PeriodTrackerViewModelFactory(
-    private val repository: PeriodRepository
+    private val repository: PeriodRepository,
+    private val preferences: AppPreferences,
+    private val reminderScheduler: ReminderScheduler
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(PeriodTrackerViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return PeriodTrackerViewModel(repository) as T
+            return PeriodTrackerViewModel(repository, preferences, reminderScheduler) as T
         }
         throw IllegalArgumentException("ViewModel class no soportada")
     }

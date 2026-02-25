@@ -2,6 +2,7 @@ package com.seguimiento.menstruacion.data
 
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlin.math.sqrt
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -20,6 +21,13 @@ data class PeriodPredictions(
     val nextPeriodDate: LocalDate?,
     val ovulationDate: LocalDate?,
     val averageCycleLengthDays: Int
+)
+
+data class PeriodStatistics(
+    val averageCycleLengthDays: Int,
+    val averagePeriodLengthDays: Int,
+    val cycleVariabilityDays: Int,
+    val averagePainLevel: Int
 )
 
 class PeriodRepository(
@@ -55,6 +63,24 @@ class PeriodRepository(
         )
     }
 
+    suspend fun updateRecord(record: PeriodRecord) {
+        dao.update(
+            PeriodRecordEntity(
+                id = record.id,
+                startDate = record.startDate.toString(),
+                endDate = record.endDate.toString(),
+                flowLevel = record.flowLevel,
+                symptoms = record.symptoms.joinToString(","),
+                painLevel = record.painLevel,
+                notes = record.notes
+            )
+        )
+    }
+
+    suspend fun deleteRecord(recordId: Long) {
+        dao.deleteById(recordId)
+    }
+
     fun buildPredictions(records: List<PeriodRecord>): PeriodPredictions {
         if (records.isEmpty()) {
             return PeriodPredictions(
@@ -82,6 +108,50 @@ class PeriodRepository(
             nextPeriodDate = nextPeriod,
             ovulationDate = ovulation,
             averageCycleLengthDays = averageCycle
+        )
+    }
+
+    fun buildStatistics(records: List<PeriodRecord>): PeriodStatistics {
+        if (records.isEmpty()) {
+            return PeriodStatistics(
+                averageCycleLengthDays = 28,
+                averagePeriodLengthDays = 5,
+                cycleVariabilityDays = 0,
+                averagePainLevel = 0
+            )
+        }
+
+        val sorted = records.sortedBy { it.startDate }
+        val cycleLengths = if (sorted.size >= 2) {
+            sorted.zipWithNext { first, second ->
+                ChronoUnit.DAYS.between(first.startDate, second.startDate).toDouble()
+            }
+        } else {
+            listOf(28.0)
+        }
+
+        val averageCycle = cycleLengths.average().roundToInt().coerceIn(20, 45)
+        val cycleStdDev = if (cycleLengths.size > 1) {
+            val mean = cycleLengths.average()
+            sqrt(cycleLengths.map { (it - mean) * (it - mean) }.average()).roundToInt()
+        } else {
+            0
+        }
+
+        val averagePeriodLength = records
+            .map {
+                ChronoUnit.DAYS.between(it.startDate, it.endDate).toInt().coerceAtLeast(0) + 1
+            }
+            .average()
+            .roundToInt()
+
+        val averagePain = records.map { it.painLevel }.average().roundToInt()
+
+        return PeriodStatistics(
+            averageCycleLengthDays = averageCycle,
+            averagePeriodLengthDays = averagePeriodLength,
+            cycleVariabilityDays = cycleStdDev,
+            averagePainLevel = averagePain
         )
     }
 }
