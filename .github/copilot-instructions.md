@@ -1,0 +1,4 @@
+- Proyecto Android nativo con Kotlin + Jetpack Compose.
+- Mantener privacidad local: no agregar autenticación ni sincronización en nube.
+- Priorizar cambios mínimos y claros sobre el MVP de seguimiento menstrual.
+- Evitar dependencias innecesarias y mantener arquitectura simple (UI + ViewModel + Room).
