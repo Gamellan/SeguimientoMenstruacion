@@ -17,8 +17,15 @@ class AppPreferences(context: Context) {
         preferences.edit().putBoolean(KEY_REMINDERS_ENABLED, enabled).apply()
     }
 
+    fun isAutoNotificationAttempted(): Boolean = preferences.getBoolean(KEY_AUTO_NOTIFICATION_ATTEMPTED, false)
+
+    fun setAutoNotificationAttempted(attempted: Boolean) {
+        preferences.edit().putBoolean(KEY_AUTO_NOTIFICATION_ATTEMPTED, attempted).apply()
+    }
+
     private companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_REMINDERS_ENABLED = "reminders_enabled"
+        private const val KEY_AUTO_NOTIFICATION_ATTEMPTED = "auto_notification_attempted"
     }
 }

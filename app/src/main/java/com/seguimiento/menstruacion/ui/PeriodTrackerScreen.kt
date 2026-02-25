@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +75,31 @@ private val weekDayLabels = listOf("L", "M", "X", "J", "V", "S", "D")
 @Composable
 fun PeriodTrackerScreen(viewModel: PeriodTrackerViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val autoNotificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.completeAutoEnableNotificationsAttempt(granted)
+    }
+
+    LaunchedEffect(uiState.remindersEnabled) {
+        if (!viewModel.shouldAttemptAutoEnableNotifications()) return@LaunchedEffect
+
+        val needsPermission =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+
+        if (needsPermission) {
+            viewModel.markAutoEnableNotificationsAttempted()
+            autoNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.completeAutoEnableNotificationsAttempt(granted = true)
+        }
+    }
+
     if (uiState.showOnboarding) {
         OnboardingScreen(onFinish = viewModel::completeOnboarding)
         return
@@ -90,18 +116,18 @@ fun PeriodTrackerScreen(viewModel: PeriodTrackerViewModel) {
 
     Scaffold(
         topBar = {
-            if (uiState.currentScreen != AppScreen.HOME) {
-                TopAppBar(title = { Text(screenTitle) })
+            Column {
+                BottomNavigationBar(
+                    currentScreen = uiState.currentScreen,
+                    onGoHome = viewModel::goToHome,
+                    onGoCreate = viewModel::goToCreateRecord,
+                    onGoHistory = viewModel::goToHistory,
+                    onGoSettings = viewModel::goToSettings
+                )
+                if (uiState.currentScreen != AppScreen.HOME) {
+                    TopAppBar(title = { Text(screenTitle) })
+                }
             }
-        },
-        bottomBar = {
-            BottomNavigationBar(
-                currentScreen = uiState.currentScreen,
-                onGoHome = viewModel::goToHome,
-                onGoCreate = viewModel::goToCreateRecord,
-                onGoHistory = viewModel::goToHistory,
-                onGoSettings = viewModel::goToSettings
-            )
         }
     ) { innerPadding ->
         Box(

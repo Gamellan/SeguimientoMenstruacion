@@ -220,6 +220,21 @@ class PeriodTrackerViewModel(
         }
     }
 
+    fun shouldAttemptAutoEnableNotifications(): Boolean {
+        return !preferences.isAutoNotificationAttempted() && !remindersEnabledState.value
+    }
+
+    fun markAutoEnableNotificationsAttempted() {
+        preferences.setAutoNotificationAttempted(true)
+    }
+
+    fun completeAutoEnableNotificationsAttempt(granted: Boolean) {
+        preferences.setAutoNotificationAttempted(true)
+        if (granted) {
+            setRemindersEnabled(true)
+        }
+    }
+
     fun editRecord(record: PeriodRecord) {
         val predefined = record.symptoms.filter { predefinedSymptoms.contains(it) }.toSet()
         val custom = record.symptoms.filterNot { predefinedSymptoms.contains(it) }.joinToString(", ")
