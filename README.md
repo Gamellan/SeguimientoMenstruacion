@@ -2,6 +2,15 @@
 
 Aplicación Android nativa (Kotlin + Jetpack Compose) para registrar ciclos menstruales de forma local en el dispositivo.
 
+## Instalación rápida en tu móvil (APK)
+
+1. Usa el archivo `app-debug.apk` que está en la raíz del proyecto.
+2. Copia el APK a tu teléfono (por cable USB, Drive, Telegram, etc.).
+3. En el móvil, abre el APK y permite instalar desde “orígenes desconocidos” para la app de archivos/navegador que uses (solo la primera vez).
+4. Confirma la instalación y abre la app desde el lanzador.
+
+> Nota: Al ser una build debug, Android puede mostrar advertencias de seguridad normales para apps no publicadas en tienda.
+
 ## Funcionalidades MVP
 
 - Registro de periodo con selector de rango de fechas.
