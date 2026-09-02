@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.seguimiento.menstruacion"
+    namespace = "com.gamellan.menstruacion"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.seguimiento.menstruacion"
+        applicationId = "com.gamellan.menstruacion"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
